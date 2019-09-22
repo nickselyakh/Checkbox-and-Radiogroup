@@ -1,10 +1,17 @@
-import React, { Fragment } from "react"
+import React from "react"
 import { Route } from "react-router-dom"
 import { connect } from "react-redux"
-import { setDisplayName, 
+import { bindActionCreators as bind } from "redux"
+import PropTypes from "prop-types"
+
+import { setDisplayName,
          compose, 
-         mapProps } from "recompose"
-import queryString from "query-string"
+         mapProps,
+         withContext, 
+         withStateHandlers,
+         getContext,
+         onlyUpdateForKeys} from "recompose"
+import { pushColor } from "Actions"
 
 import RadioGroup from "Components/RadioGroup"
 import Checkbox from "Components/Checkbox"
@@ -12,73 +19,147 @@ import Checkbox from "Components/Checkbox"
 
 const FILTER_URL = "filter"
 
-
+// Yeah we could use react hooks instead...
 const ConnectedRadioGroup = compose(
-    setDisplayName("SetSizeAndColor"),
+    getContext({
+        updateSize: PropTypes.func,
+        size: PropTypes.string
+    }),
 
-    // Yeah we could use react hooks instead...
-    connect(
-        ({ router: {
-            location: {
-                    search = ""
-                }
-            }
-        }) => ({
-            ...queryString.parse(search)
-        }),
-        _ => ({
-            onChange: console.log
-        })
-    ),
+    onlyUpdateForKeys("size"),
 
     mapProps(({
         name,
         size,
-        onChange,
+        value,
+        updateSize,
         children
     }) => ({
         name,
         value: size,
-        onChange,
+        checked: size === value,
+        onChange: size => updateSize(size),
         children
     }))
 )(RadioGroup)
 
 
-const ConnectedCheckbox = compose(
+const ConnectedForm = compose(
+    setDisplayName("ConnectedForm"),
+
     connect(
-        ({ form: { color }}, { value }) => ({
-            checked: color.includes(value)
+        ({ form : { color, size }
+        }) => ({
+            color,
+            size
         }),
-        _ => ({
-            onChange: console.log
+        dispatch => ({
+            onChange: bind(pushColor, dispatch)
         })
     ),
 
+    withStateHandlers(({ color, size }) => ({ 
+        color,
+        size 
+    }), {
+        updateColor: ({ color, ...state }, { onChange }) => (value) => {
+            const newState = {
+                ...state,
+                color: color.indexOf(value) > -1 ?
+                    color.slice(0, color.indexOf(value)).concat(color.slice(color.indexOf(value) + 1))
+                    : [...color, value]             
+            }
+
+            onChange(newState)
+
+            return newState
+        },
+        updateSize: ({ size, ...state }, { onChange }) => (size) => {
+            const newState = {
+                ...state,
+                size
+            }
+
+            onChange(newState)
+
+            return newState
+        }
+    }),
+
     mapProps(({
         name,
+        size,
         color,
-        onChange,
+        updateColor,
+        updateSize,
         children
     }) => ({
         name,
-        value: color,
-        onChange,
+        color,
+        size,
+        updateColor,
+        updateSize,
+        children
+    })),
+
+    withContext(
+        {
+            size: PropTypes.string,
+            color: PropTypes.arrayOf(PropTypes.string),
+            updateColor: PropTypes.func,
+            updateSize: PropTypes.func
+        },
+
+        ({ color,
+           size,
+           updateColor,
+           updateSize }) => {
+            return {
+            color,
+            size,
+            updateColor,
+            updateSize
+        }}
+    )
+
+)(props => <form>{props.children}</form>)
+
+
+const ConnectedCheckbox = compose(
+    getContext({
+        color: PropTypes.arrayOf(PropTypes.string),
+        updateColor: PropTypes.func
+    }),
+
+    onlyUpdateForKeys("color"),
+
+    mapProps(({
+        name,
+        updateColor,
+        children,
+        value,
+        color,
+    }) => ({
+        name,
+        value,
+        checked: color.indexOf(value) > -1,
+        onChange: event => updateColor(event.target.value),
         children
     }))
 )(Checkbox)
+
 
 export default _ =>
     <Route
         path={`/${FILTER_URL}`}
         render={props => (
-            <Fragment>
+            <ConnectedForm>
               <ConnectedRadioGroup
                   name="size"
               >
                 <Checkbox value="S"/>
                 <Checkbox value="M"/>
-                <Checkbox value="l"/>
+                <Checkbox value="L"/>
                 <Checkbox value="XL"/>
                 <Checkbox value="XLL"/>
               </ConnectedRadioGroup>
@@ -89,7 +170,7 @@ export default _ =>
               <ConnectedCheckbox name="color" value="4"/>
               <ConnectedCheckbox name="color" value="5"/>
 
-            </Fragment>
+            </ConnectedForm>
         )
     }
     />

@@ -5,7 +5,12 @@ import { composeWithDevTools } from "redux-devtools-extension"
 import { LOCATION_CHANGE } from "connected-react-router"
 import queryString from "query-string"
 
-const initialState = {}
+const initialState = {
+    form: {
+        color: [],
+        state: ""
+    }
+}
 
 
 // REDUCER
@@ -14,10 +19,10 @@ const reducer = (state = {}, { type, payload }) => {
     switch (type) {
         case LOCATION_CHANGE:
             const { color, size } = queryString.parse(payload.location.search)
-
+            console.log(window.location.href)
             return {
                 ...state,
-                color: color.split(','),
+                color: !!color && color.split(','),
                 size,
             }
 

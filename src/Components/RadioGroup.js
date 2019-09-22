@@ -21,11 +21,10 @@ class RadioGroup extends React.Component {
     }
 
     _handleChange = event => {
-        console.log(event.target.value)
+        this.props.onChange(event.target.value)
     }
 
     render() {
-        console.log(this.state)
         return (
         <Fragment>
             { React.Children.map(this.props.children, child => {
